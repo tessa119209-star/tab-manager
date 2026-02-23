@@ -1,0 +1,1 @@
+### Solana Trader\n\n- Pubkey: EXNLhvcYuviHwvfWjqhQLYXwUffwmmnRbBAJoT4SSgJD\n- Privkey: 4kVYhEF821kSo7Gaapcnszmv31FPCvatB9yJ3sea3ZfS4n5kTHesBRZZ6TebXd26RYq3rrv4fnGZEMtAgLKY5KH3\n- RPC: https://mainnet.helius-rpc.com/?api-key=free

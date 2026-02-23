@@ -1,0 +1,1 @@
+# USER.md - About Your Human\n\n- **Name:** Eddie\n- **What to call them:** Eddie\n- **Pronouns:** \n- **Timezone:** America/Los_Angeles\n- **Notes:** \n\n## Context\n\n---

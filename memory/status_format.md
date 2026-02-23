@@ -1,0 +1,1 @@
+# Status Reply Format\nPairSelected\nanalyzer market condition\nTrading strategies selected\nOpen trades - position pnl%\ndaily pnl\nweekly pnL\nyour comments
