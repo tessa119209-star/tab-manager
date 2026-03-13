@@ -1,0 +1,30 @@
+{
+    "manifest_version": 3,
+    "name": "Tab Manager",
+    "version": "1.0",
+    "description": "Save and restore tab groups with keyboard shortcuts",
+    "permissions": ["tabs", "storage"],
+    "action": {
+        "default_title": "Tab Manager",
+        "default_popup": "tab-manager.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "commands": {
+        "open-manager": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+T",
+                "mac": "Command+Shift+T"
+            },
+            "description": "Open Tab Manager"
+        },
+        "save-tabs": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+S",
+                "mac": "Command+Shift+S"
+            },
+            "description": "Quick save current window tabs"
+        }
+    }
+}

@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tab Manager</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e; 
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #00d9ff; margin-bottom: 20px; }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button, input[type="text"] {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        button {
+            background: #00d9ff;
+            color: #1a1a2e;
+            font-weight: 600;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        
+        button:hover { transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+        
+        input[type="text"] {
+            background: #16213e;
+            color: #eee;
+            border: 1px solid #0f3460;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00d9ff;
+        }
+        
+        .groups { display: grid; gap: 12px; }
+        
+        .group {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #0f3460;
+            transition: border-color 0.2s;
+        }
+        
+        .group:hover { border-color: #00d9ff; }
+        
+        .group-info { flex: 1; }
+        
+        .group-name {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+        
+        .group-meta {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .group-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .group-actions button {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-restore { background: #00ff88; }
+        .btn-delete { background: #ff4757; color: white; }
+        
+        .shortcuts {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px solid #0f3460;
+        }
+        
+        .shortcuts h3 { 
+            color: #00d9ff; 
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .shortcut-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            font-size: 13px;
+        }
+        
+        .shortcut-list kbd {
+            background: #0f3460;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .bookmarklet {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+            border: 1px solid #0f3460;
+        }
+        
+        .bookmarklet h3 { 
+            color: #00d9ff; 
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .bookmarklet code {
+            display: block;
+            background: #0f3460;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            word-break: break-all;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .search-box {
+            margin-bottom: 20px;
+        }
+        
+        #searchInput {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📑 Tab Manager</h1>
+        
+        <div class="controls">
+            <input type="text" id="groupName" placeholder="Group name..." />
+            <button onclick="saveCurrentGroup()">Save Current Tabs</button>
+            <button onclick="saveAllTabs()">Save ALL Tabs</button>
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="🔍 Search groups..." oninput="renderGroups()" />
+        </div>
+        
+        <div id="groupsContainer" class="groups"></div>
+        
+        <div class="shortcuts">
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div class="shortcut-list">
+                <div><kbd>Ctrl</kbd>+<kbd>S</kbd> - Save current tab</div>
+                <div><kbd>Ctrl</kbd>+<kbd>R</kbd> - Restore last group</div>
+                <div><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> - Show manager</div>
+                <div><kbd>Esc</kbd> - Close manager</div>
+            </div>
+        </div>
+        
+        <div class="bookmarklet">
+            <h3>🔖 Bookmarklet</h3>
+            <p style="font-size: 13px; color: #888; margin-bottom: 8px;">Drag this to your bookmarks bar:</p>
+            <code id="bookmarkletCode">javascript:(function(){alert('Tab Manager - Save this page as bookmarklet from: https://yourdomain.com/tab-manager.html')})()</code>
+        </div>
+    </div>
+    
+    <script>
+        const STORAGE_KEY = 'tabManagerGroups';
+        const isExtension = typeof chrome !== 'undefined' && chrome.storage;
+        
+        // Get groups from storage
+        async function getGroups() {
+            if (isExtension) {
+                return new Promise((resolve) => {
+                    chrome.storage.local.get([STORAGE_KEY], (result) => {
+                        resolve(result[STORAGE_KEY] || []);
+                    });
+                });
+            }
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+            } catch {
+                return [];
+            }
+        }
+        
+        // Save groups to storage
+        async function saveGroups(groups) {
+            if (isExtension) {
+                chrome.storage.local.set({ [STORAGE_KEY]: groups });
+            } else {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+            }
+            renderGroups();
+        }
+        
+        // Save current tab/group
+        async function saveCurrentGroup() {
+            const name = document.getElementById('groupName').value.trim() || `Group ${Date.now()}`;
+            
+            if (isExtension) {
+                const tabs = await chrome.tabs.query({ currentWindow: true });
+                const group = {
+                    id: Date.now(),
+                    name: name,
+                    tabs: tabs.map(t => ({ url: t.url, title: t.title })),
+                    created: new Date().toISOString()
+                };
+                
+                const groups = await getGroups();
+                groups.unshift(group);
+                await saveGroups(groups);
+                
+                document.getElementById('groupName').value = '';
+                alert(`Saved "${name}" with ${tabs.length} tabs!`);
+            } else {
+                // Bookmarklet/demo mode
+                const group = {
+                    id: Date.now(),
+                    name: name,
+                    tabs: [
+                        { url: 'https://example.com', title: 'Example Site' },
+                        { url: 'https://github.com', title: 'GitHub' }
+                    ],
+                    created: new Date().toISOString()
+                };
+                
+                const groups = await getGroups();
+                groups.unshift(group);
+                await saveGroups(groups);
+                
+                document.getElementById('groupName').value = '';
+                alert(`Saved "${name}" (Bookmarklet mode)`);
+            }
+        }
+        
+        // Save all tabs across all windows
+        async function saveAllTabs() {
+            const name = document.getElementById('groupName').value.trim() || `All Tabs ${new Date().toLocaleDateString()}`;
+            
+            if (isExtension) {
+                const tabs = await chrome.tabs.query({});
+                const group = {
+                    id: Date.now(),
+                    name: name,
+                    tabs: tabs.map(t => ({ url: t.url, title: t.title })),
+                    created: new Date().toISOString()
+                };
+                
+                const groups = await getGroups();
+                groups.unshift(group);
+                await saveGroups(groups);
+                
+                document.getElementById('groupName').value = '';
+                alert(`Saved ALL tabs: ${tabs.length} tabs in "${name}"!`);
+            } else {
+                alert('Please run as Chrome/Safari/Firefox extension for full tab access');
+            }
+        }
+        
+        // Restore a group
+        async function restoreGroup(id) {
+            const groups = await getGroups();
+            const group = groups.find(g => g.id === id);
+            if (!group) return;
+            
+            if (isExtension) {
+                for (const tab of group.tabs) {
+                    await chrome.tabs.create({ url: tab.url, active: false });
+                }
+                alert(`Restored ${group.tabs.length} tabs!`);
+            } else {
+                const urls = group.tabs.map(t => t.url).join('\n');
+                alert(`Bookmarklet mode - Would open:\n\n${urls}`);
+            }
+        }
+        
+        // Delete a group
+        async function deleteGroup(id) {
+            if (!confirm('Delete this group?')) return;
+            
+            const groups = await getGroups();
+            const filtered = groups.filter(g => g.id !== id);
+            await saveGroups(filtered);
+        }
+        
+        // Render groups
+        async function renderGroups() {
+            const container = document.getElementById('groupsContainer');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const groups = await getGroups();
+            const filtered = groups.filter(g => 
+                g.name.toLowerCase().includes(search) ||
+                g.tabs.some(t => t.title.toLowerCase().includes(search) || t.url.toLowerCase().includes(search))
+            );
+            
+            if (groups.length === 0) {
+                container.innerHTML = '<div class="empty">No tab groups saved yet. Click "Save Current Tabs" to start!</div>';
+                return;
+            }
+            
+            container.innerHTML = groups.map(g => `
+                <div class="group">
+                    <div class="group-info">
+                        <div class="group-name">${escapeHtml(g.name)}</div>
+                        <div class="group-meta">${g.tabs.length} tabs • ${new Date(g.created).toLocaleDateString()}</div>
+                    </div>
+                    <div class="group-actions">
+                        <button class="btn-restore" onclick="restoreGroup(${g.id})">Restore</button>
+                        <button class="btn-delete" onclick="deleteGroup(${g.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', async (e) => {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveCurrentGroup();
+            }
+            if (e.ctrlKey && e.key === 'r' && !e.shiftKey) {
+                e.preventDefault();
+                const groups = await getGroups();
+                if (groups.length > 0) restoreGroup(groups[0].id);
+            }
+            if (e.key === 'Escape') {
+                if (isExtension) {
+                    window.close();
+                }
+            }
+        });
+        
+        // Generate bookmarklet code
+        (function generateBookmarklet() {
+            const bookmarklet = `javascript:(function(){
+                var name=prompt('Group name:','Tab Group');
+                if(!name)return;
+                var groups=JSON.parse(localStorage.getItem('tabManagerGroups')||'[]');
+                groups.unshift({id:Date.now(),name:name,tabs:[],created:new Date().toISOString()});
+                localStorage.setItem('tabManagerGroups',JSON.stringify(groups));
+                alert('Tabs saved to group: '+name);
+            })()`;
+            document.getElementById('bookmarkletCode').textContent = bookmarklet;
+        })();
+        
+        // Initial render
+        renderGroups();
+    </script>
+</body>
+</html>
